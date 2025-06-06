@@ -1,86 +1,131 @@
 # DATASECURE
 Sécurisation et Pentest d'une Infrastructure en Docker
-# Projet M1 : Sécurisation et Pentest d'une Infrastructure en Docker
 
-## 👉 Objectif du Projet
+
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-blue)
+![Security](https://img.shields.io/badge/Security-Wazuh%20%26%20Grafana-success)
+![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
+
+---
+
+## 🎯 Objectif
 
 Ce projet a pour but de :
 
-1. **Blue Team** : Déployer une infrastructure simulée d'entreprise, sécurisée, à l'aide de Docker Compose.
-2. **Red Team** : Effectuer un test d'intrusion complet de cette infrastructure.
+- 🚀 **Déployer une infrastructure simulée d'entreprise** sécurisée à l'aide de Docker Compose.
+- 🛡️ **Effectuer un test d'intrusion** complet sur l'infrastructure.
+- 📈 **Mettre en place un monitoring avancé** avec Wazuh et Grafana pour l'analyse des logs et la surveillance des performances.
 
-## 🔧 Partie 1 : Déploiement de l'Infrastructure (Blue Team)
+---
 
-### 🔹 Composants à déployer
+## 🧩 Architecture de l'Infrastructure
 
-* **Application Métier** : Dolibarr ERP/CRM
-* **Base de données** : MariaDB
-* **Gestion des utilisateurs** : OpenLDAP
-* **Bastion SSH** : Serveur pour administration
-* **VPN** : OpenVPN pour accès distant sécurisé
+### 📚 Services Déployés
 
-### 📊 Architecture Réseau
+| Service           | Image Docker             | Réseau          | Ports Exposés  |
+|-------------------|---------------------------|-----------------|---------------|
+| Dolibarr ERP/CRM  | dolibarr/dolibarr          | dmz_network     | 443 (HTTPS)   |
+| Base de Données   | mariadb                   | internal_network| -             |
+| OpenLDAP          | osixia/openldap           | internal_network| 389, 636      |
+| Bastion SSH       | rastasheep/ubuntu-sshd     | internal_network| 2222 (SSH)    |
+| OpenVPN           | kylemanna/openvpn          | vpn_network     | 1194/UDP      |
+| Wazuh Manager     | wazuh/wazuh-manager        | wazuh_network   | 1514/UDP, 1515, 55000 |
+| Wazuh Indexer     | wazuh/wazuh-indexer        | wazuh_network   | -             |
+| Wazuh Dashboard   | wazuh/wazuh-dashboard      | wazuh_network   | 5601          |
+| Grafana           | grafana/grafana            | wazuh_network   | 3000          |
 
-* **dmz\_network** : Serveur Web (Dolibarr) - Accessible depuis l'Internet via HTTPS (443).
-* **internal\_network** : Base de données, OpenLDAP, Bastion SSH - Réseau interne non exposé.
-* **vpn\_network** : VPN pour accès Red Team.
+### 🛰️ Réseaux Docker
 
-### 📁 Docker Compose (Vue Globale)
+- `dmz_network` : Pour Dolibarr Web Server.
+- `internal_network` : Pour Base de Données, LDAP, SSH Bastion.
+- `vpn_network` : Pour connexion sécurisée via VPN.
+- `wazuh_network` : Pour la gestion des logs et monitoring.
 
-| Service     | Image Docker           | Réseau            | Ports Exposés |
-| ----------- | ---------------------- | ----------------- | ------------- |
-| Dolibarr    | dolibarr/dolibarr      | dmz\_network      | 443 (HTTPS)   |
-| MariaDB     | mariadb                | internal\_network | Aucun         |
-| OpenLDAP    | osixia/openldap        | internal\_network | 389, 636      |
-| Bastion SSH | rastasheep/ubuntu-sshd | internal\_network | 22            |
-| OpenVPN     | kylemanna/openvpn      | vpn\_network      | 1194/UDP      |
+---
 
-### 🔒 Sécurisation
+## 🔒 Sécurisation Mise en Place
 
-* HTTPS obligatoire avec Let’s Encrypt via reverse proxy (Traefik ou Nginx).
-* Clés SSH uniquement sur Bastion.
-* Firewall hôte avec `iptables` pour contrôler l'accès aux containers.
-* Fail2Ban sur SSH pour protection brute force.
-* LDAPS (LDAP + SSL/TLS) activé pour sécuriser les communications LDAP.
-* Segmentation des réseaux Docker.
+- HTTPS obligatoire avec certificat SSL via Let's Encrypt (reverse proxy Nginx/Traefik).
+- Authentification SSH uniquement par clés privées sur Bastion.
+- Firewall `iptables` actif sur l’hôte Docker pour restreindre les flux.
+- Fail2Ban actif pour bloquer les tentatives SSH bruteforce.
+- Sécurisation LDAP via LDAPS (SSL/TLS).
+- Segmentation réseau stricte via Docker Networks.
+- Monitoring centralisé et alerting avec **Wazuh**.
+- Visualisation des métriques et logs via **Grafana**.
 
-### 📅 Livrables Blue Team
+---
 
-1. Schéma réseau
-2. `docker-compose.yml`
-3. Documentation d'installation et de configuration
-4. Rapport de sécurité justifiant chaque choix
-5. Procédure d'accès pour Red Team (IP publique, VPN config)
+## 🛠️ Déploiement
 
-## 🔧 Partie 2 : Test d'Intrusion (Red Team)
+1. Clonez ce dépôt :
+    ```bash
+    git clone https://github.com/<ton_github>/projet_m1_infra.git
+    cd projet_m1_infra
+    ```
 
-### 🛡️ Objectif
+2. Lancer tous les services :
+    ```bash
+    docker-compose up -d
+    ```
 
-Tester la robustesse de l’infrastructure déployée par la Blue Team.
+3. Accéder aux Interfaces :
+    - **Dolibarr** : `https://<votre-ip>`
+    - **Wazuh Dashboard** : `http://<votre-ip>:5601`
+    - **Grafana** : `http://<votre-ip>:3000` (Login: admin / admin)
 
-### 🔹 Périmètre d'attaque
+4. Dans Grafana :
+    - Ajouter OpenSearch (`http://wazuh.indexer:9200`) comme source de données.
+    - Importer un dashboard préconfiguré pour la surveillance des services.
 
-* Application Dolibarr (HTTPS)
-* VPN
-* Bastion SSH
-* Tentatives d'accès interne (MariaDB, OpenLDAP)
+---
 
-### 🔍 Méthodologie
+## 🔍 Test d'Intrusion (Red Team)
 
-1. **Reconnaissance** : Scan IP, ports (nmap)
-2. **Analyse de vulnérabilités** : Dolibarr, configurations.
-3. **Exploitation** : Vulnérabilités Web, Escalade de privilèges.
-4. **Post-Exploitation** : Recherche de pivot possible.
+### Périmètre d'attaque
+- Application Dolibarr
+- VPN OpenVPN
+- Bastion SSH
+- Réseau interne (MariaDB, OpenLDAP)
 
-### 📅 Livrables Red Team
+### Méthodologie
+- 🔎 Reconnaissance : Scan réseau (Nmap, masscan).
+- 🔒 Analyse de vulnérabilités : OWASP ZAP, OpenVAS.
+- 🛠️ Exploitation : Injection SQL, attaques XSS, escalade SSH.
+- 🧩 Post-Exploitation : Accès aux données, escalade de privilèges.
 
-1. Rapport de pentest documenté (vulnérabilités, preuves d'exploitation, recommandations)
-2. Démonstration de la compromission
-3. Évaluation de la détection (logs, IDS activé ?)
+### Livrables attendus
+- Rapport de pentest détaillé (vulnérabilités + preuves).
+- Démonstration de compromission.
+- Évaluation de la capacité de détection (logs et alertes générées).
 
-## 📚 Conclusion
+---
 
-Ce projet met en pratique les compétences de déploiement sécurisé d'infrastructure, d'usage de Docker Compose pour la virtualisation, et de pentesting orienté entreprise, en respectant les bonnes pratiques de cybersécurité.
+## 📈 Monitoring avec Wazuh et Grafana
+
+- **Wazuh Dashboard** accessible sur `http://<votre-ip>:5601`
+- **Grafana** accessible sur `http://<votre-ip>:3000`
+  - Utilisez OpenSearch comme Data Source.
+  - Importez des dashboards pour suivre :
+    - Connexions SSH
+    - Erreurs bases de données
+    - Logs Web serveur (Dolibarr)
+    - Activité OpenVPN
+    - Tentatives d'intrusion
+
+---
+
+## 📝 Livrables du Projet
+
+- `docker-compose.yml` complet.
+- Schéma réseau.
+- Documentation d'installation et sécurisation.
+- Rapport de sécurité.
+- Rapport de test d'intrusion.
+- Accès configuré à Wazuh et Grafana.
+
+---
+
 
 
 *Projet réalisé par : \[Dierry TCHUENDOM]*
