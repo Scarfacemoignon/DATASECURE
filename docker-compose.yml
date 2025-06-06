@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - lan_net
+      - dmz_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dolibarr:
+    image: dolibarr/dolibarr:latest
+    container_name: dolibarr
+    restart: unless-stopped
+    environment:
+      DOLI_DB_HOST: mariadb
+      DOLI_DB_NAME: ${MYSQL_DATABASE}
+      DOLI_DB_USER: ${MYSQL_USER}
+      DOLI_DB_PASSWORD: ${MYSQL_PASSWORD}
+      APACHE_RUN_USER: www-data
+      APACHE_RUN_GROUP: www-data
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dolibarr.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.dolibarr.entrypoints=websecure"
+      - "traefik.http.routers.dolibarr.tls.certresolver=myresolver"
+      - "traefik.http.services.dolibarr.loadbalancer.server.port=80"
+    networks:
+      - dmz_net
+      - lan_net
+
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+    restart: unless-stopped
+    environment:
+      LDAP_ORGANISATION: "DataSecure"
+      LDAP_DOMAIN: "datasecure.local"
+      LDAP_ADMIN_PASSWORD: "${LDAP_ADMIN_PASSWORD}"
+    networks:
+      - lan_net
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    container_name: phpldapadmin
+    restart: unless-stopped
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+      PHPLDAPADMIN_TRUST_PROXY_SSL: "true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpldapadmin.rule=Host(`phpldapadmin.datasecure.local`)"
+      - "traefik.http.routers.phpldapadmin.entrypoints=websecure"
+      - "traefik.http.routers.phpldapadmin.tls.certresolver=myresolver"
+      - "traefik.http.services.phpldapadmin.loadbalancer.server.port=80"
+    networks:
+      - lan_net
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - dmz_net
+      - lan_net
+
+networks:
+  dmz_net:
+  lan_net:
+
+volumes:
+  mariadb_data:
