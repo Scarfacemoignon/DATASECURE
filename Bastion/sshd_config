@@ -1,0 +1,7 @@
+# SSH Config sécurisée
+Port 22
+Protocol 2
+PermitRootLogin no
+PasswordAuthentication yes
+UsePAM yes
+Subsystem sftp /usr/lib/openssh/sftp-server
