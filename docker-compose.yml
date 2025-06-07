@@ -107,9 +107,22 @@ services:
     container_name: bastion-ssh
     restart: unless-stopped
     ports:
-      - "2222:22" # Port SSH exposé
+      - "2222:22"
     networks:
       - lan_net
+
+  webapp:
+    image: scarface05/sec-waf-wazuh:1.0
+    container_name: webapp
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webapp.rule=Host(`app.datasecure.local`)"
+      - "traefik.http.routers.webapp.entrypoints=websecure"
+      - "traefik.http.routers.webapp.tls.certresolver=myresolver"
+      - "traefik.http.services.webapp.loadbalancer.server.port=80"
+    networks:
+      - dmz_net
 
 networks:
   dmz_net:
