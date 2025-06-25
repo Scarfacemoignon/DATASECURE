@@ -115,12 +115,22 @@ services:
     image: scarface05/sec-waf-wazuh:1.0
     container_name: webapp
     restart: unless-stopped
+    networks:
+      - dmz_net
+
+  waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: waf
+    restart: unless-stopped
+    environment:
+      - ./waf_conf:/etc/nginx/conf.d
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.webapp.rule=Host(`app.datasecure.local`)"
-      - "traefik.http.routers.webapp.entrypoints=websecure"
-      - "traefik.http.routers.webapp.tls.certresolver=myresolver"
-      - "traefik.http.services.webapp.loadbalancer.server.port=80"
+      - "traefik.http.routers.app.rule=Host(`app.datasecure.local`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=myresolver"
+      - "traefik.http.services.app.loadbalancer.server.scheme=http" 
+      - "traefik.http.services.app.loadbalancer.server.port=80"
     networks:
       - dmz_net
 
