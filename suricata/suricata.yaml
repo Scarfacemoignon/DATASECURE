@@ -1,0 +1,54 @@
+%YAML 1.1
+---
+vars:
+  address-groups:
+    HOME_NET: "[172.19.0.0/16,172.20.0.0/16]"
+
+default-log-dir: /var/log/suricata
+logging:
+  default-log-level: info
+  outputs:
+    - eve-log:
+        enabled: yes
+        filetype: regular
+        filename: eve.json
+        types:
+          - alert:
+              metadata: yes
+              tagged-packets: yes
+          - http
+          - dns
+          - tls
+          - ssh
+          - flow
+
+af-packet:
+  - interface: eth0
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      types:
+        - alert:
+            metadata: yes
+        - dns
+        - http
+        - tls
+        - files
+        - ssh
+  - fast:
+      enabled: yes
+      filename: /var/log/suricata/fast.log
+
+
+
+rule-files:
+  - suricata.rules
+  - custom.rules
+
+default-rule-path: /etc/suricata/rules

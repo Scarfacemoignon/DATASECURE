@@ -1,131 +1,147 @@
-# DATASECURE
-Sécurisation et Pentest d'une Infrastructure en Docker
+# 🔐 Projet Final - Infrastructure Sécurisée avec Docker, Suricata & ELK
 
+## 📌 Objectif
 
-![Docker Compose](https://img.shields.io/badge/Docker-Compose-blue)
-![Security](https://img.shields.io/badge/Security-Wazuh%20%26%20Grafana-success)
-![Status](https://img.shields.io/badge/Status-In%20Progress-yellow)
+Ce projet vise à concevoir et déployer une infrastructure sécurisée et supervisée à l’aide de conteneurs Docker. Elle intègre une application vulnérable, un pare-feu applicatif (WAF), un système de détection d'intrusion (IDS) avec Suricata, une machine d'attaque Kali Linux, ainsi qu'une stack ELK (Elasticsearch, Logstash, Kibana) pour la collecte et l’analyse des logs de sécurité.
 
 ---
 
-## 🎯 Objectif
+## 🧱 Architecture du projet
 
-Ce projet a pour but de :
-
-- 🚀 **Déployer une infrastructure simulée d'entreprise** sécurisée à l'aide de Docker Compose.
-- 🛡️ **Effectuer un test d'intrusion** complet sur l'infrastructure.
-- 📈 **Mettre en place un monitoring avancé** avec Wazuh et Grafana pour l'analyse des logs et la surveillance des performances.
-
----
-
-## 🧩 Architecture de l'Infrastructure
-
-### 📚 Services Déployés
-
-| Service           | Image Docker             | Réseau          | Ports Exposés  |
-|-------------------|---------------------------|-----------------|---------------|
-| Dolibarr ERP/CRM  | dolibarr/dolibarr          | dmz_network     | 443 (HTTPS)   |
-| Base de Données   | mariadb                   | internal_network| -             |
-| OpenLDAP          | osixia/openldap           | internal_network| 389, 636      |
-| Bastion SSH       | rastasheep/ubuntu-sshd     | internal_network| 2222 (SSH)    |
-| OpenVPN           | kylemanna/openvpn          | vpn_network     | 1194/UDP      |
-| Wazuh Manager     | wazuh/wazuh-manager        | wazuh_network   | 1514/UDP, 1515, 55000 |
-| Wazuh Indexer     | wazuh/wazuh-indexer        | wazuh_network   | -             |
-| Wazuh Dashboard   | wazuh/wazuh-dashboard      | wazuh_network   | 5601          |
-| Grafana           | grafana/grafana            | wazuh_network   | 3000          |
-
-### 🛰️ Réseaux Docker
-
-- `dmz_network` : Pour Dolibarr Web Server.
-- `internal_network` : Pour Base de Données, LDAP, SSH Bastion.
-- `vpn_network` : Pour connexion sécurisée via VPN.
-- `wazuh_network` : Pour la gestion des logs et monitoring.
+```plaintext
+                   +-------------------------+
+                   |     Attaquant (Kali)    |
+                   +-----------+-------------+
+                               |
+                               v
++-----------+     +-----------+-------------+     +------------------+
+| Utilisateur| -->| Reverse Proxy (Traefik) | --> | Dolibarr         |
++-----------+     +-------------------------+     +------------------+
+                               |
+                +--------------+--------------+
+                |              |              |
+         +------+-----+  +-----+------+  +-----+------+
+         | ModSecurity |  |   Suricata  |  |  Bastion  |
+         |     WAF     |  |   IDS (host)|  |  SSH LDAP |
+         +-------------+  +-------------+  +-----------+
+                                      |
+                         +------------+------------+
+                         |     Stack ELK (SIEM)    |
+                         |  - Elasticsearch        |
+                         |  - Logstash             |
+                         |  - Kibana               |
+                         +-------------------------+
+```
 
 ---
 
-## 🔒 Sécurisation Mise en Place
+## 🛠️ Technologies utilisées
 
-- HTTPS obligatoire avec certificat SSL via Let's Encrypt (reverse proxy Nginx/Traefik).
-- Authentification SSH uniquement par clés privées sur Bastion.
-- Firewall `iptables` actif sur l’hôte Docker pour restreindre les flux.
-- Fail2Ban actif pour bloquer les tentatives SSH bruteforce.
-- Sécurisation LDAP via LDAPS (SSL/TLS).
-- Segmentation réseau stricte via Docker Networks.
-- Monitoring centralisé et alerting avec **Wazuh**.
-- Visualisation des métriques et logs via **Grafana**.
-
----
-
-## 🛠️ Déploiement
-
-1. Clonez ce dépôt :
-    ```bash
-    git clone https://github.com/<ton_github>/projet_m1_infra.git
-    cd projet_m1_infra
-    ```
-
-2. Lancer tous les services :
-    ```bash
-    docker-compose up -d
-    ```
-
-3. Accéder aux Interfaces :
-    - **Dolibarr** : `https://<votre-ip>`
-    - **Wazuh Dashboard** : `http://<votre-ip>:5601`
-    - **Grafana** : `http://<votre-ip>:3000` (Login: admin / admin)
-
-4. Dans Grafana :
-    - Ajouter OpenSearch (`http://wazuh.indexer:9200`) comme source de données.
-    - Importer un dashboard préconfiguré pour la surveillance des services.
+- **Docker & Docker Compose** : Conteneurisation de l’ensemble des services
+- **Traefik** : Reverse proxy et gestion SSL
+- **Dolibarr** : Application métier ERP/CRM vulnérable intégrée
+- **ModSecurity + CRS OWASP** : Pare-feu applicatif
+- **Suricata** : IDS avec détection des attaques réseau
+- **Kibana** : Visualisation des logs
+- **Logstash** : Parsing des logs Apache & Suricata
+- **Elasticsearch** : Stockage indexé des logs
+- **OpenLDAP + phpLDAPadmin** : Gestion centralisée des utilisateurs
+- **Kali Linux** : Machine d’attaque pour tests XSS, SQLi, Brute-force
 
 ---
 
-## 🔍 Test d'Intrusion (Red Team)
+## 🚀 Déploiement rapide
 
-### Périmètre d'attaque
-- Application Dolibarr
-- VPN OpenVPN
-- Bastion SSH
-- Réseau interne (MariaDB, OpenLDAP)
+### ✅ Prérequis
 
-### Méthodologie
-- 🔎 Reconnaissance : Scan réseau (Nmap, masscan).
-- 🔒 Analyse de vulnérabilités : OWASP ZAP, OpenVAS.
-- 🛠️ Exploitation : Injection SQL, attaques XSS, escalade SSH.
-- 🧩 Post-Exploitation : Accès aux données, escalade de privilèges.
+- Docker et Docker Compose installés
+- Modifier le fichier `/etc/hosts` :
 
-### Livrables attendus
-- Rapport de pentest détaillé (vulnérabilités + preuves).
-- Démonstration de compromission.
-- Évaluation de la capacité de détection (logs et alertes générées).
+```bash
+127.0.0.1 app.datasecure.local ldap.datasecure.local
+```
 
----
+### ⚙️ Lancement via `make`
 
-## 📈 Monitoring avec Wazuh et Grafana
+```bash
+make setup
+```
 
-- **Wazuh Dashboard** accessible sur `http://<votre-ip>:5601`
-- **Grafana** accessible sur `http://<votre-ip>:3000`
-  - Utilisez OpenSearch comme Data Source.
-  - Importez des dashboards pour suivre :
-    - Connexions SSH
-    - Erreurs bases de données
-    - Logs Web serveur (Dolibarr)
-    - Activité OpenVPN
-    - Tentatives d'intrusion
+Sinon, à la main :
+
+```bash
+git clone https://github.com/Scarfacemoignon/DATASECURE.git
+cd projet-final-cybersec
+docker-compose up -d
+```
 
 ---
 
-## 📝 Livrables du Projet
+## 🔍 Services exposés
 
-- `docker-compose.yml` complet.
-- Schéma réseau.
-- Documentation d'installation et sécurisation.
-- Rapport de sécurité.
-- Rapport de test d'intrusion.
-- Accès configuré à Wazuh et Grafana.
+| Service           | URL/Port                                                       |
+| ----------------- | -------------------------------------------------------------- |
+| Web App           | [https://app.datasecure.local](https://app.datasecure.local)   |
+| Kibana            | [http://localhost:5601](http://localhost:5601)                 |
+| phpLDAPadmin      | [https://ldap.datasecure.local](https://ldap.datasecure.local) |
+| Traefik Dashboard | [http://localhost:8080](http://localhost:8080)                 |
+| SSH Bastion       | ssh user\@localhost -p 2222                                    |
 
 ---
 
+## 📁 Fichiers clés
 
+| Fichier                  | Rôle                                 |
+| ------------------------ | ------------------------------------ |
+| `docker-compose.yml`     | Définition des services              |
+| `suricata/suricata.yaml` | Configuration de Suricata (IDS)      |
+| `logstash/logstash.conf` | Ingestion des logs Suricata / Apache |
+| `rules/local.rules`      | Règles personnalisées Suricata       |
+| `traefik/*.yml`          | Configuration HTTPS / Entrées DNS    |
+| `.gitignore`             | Fichiers à ignorer pour Git          |
 
-*Projet réalisé par : \[Dierry TCHUENDOM]*
+---
+
+## 🧪 Tests d'attaque
+
+Depuis Kali :
+
+- **XSS** :
+
+```bash
+curl "https://app.datasecure.local/index.php?msg=<script>alert(1)</script>"
+```
+
+- **SQL Injection** :
+
+```bash
+sqlmap -u "https://app.datasecure.local/login.php" --data="user=admin&pass=123" --batch
+```
+
+- **Brute-force** :
+
+```bash
+hydra -l admin -P /usr/share/wordlists/rockyou.txt https://app.datasecure.local login=^USER^ pass=^PASS^
+```
+
+---
+
+## 📊 Analyse dans Kibana
+
+1. Accéder à Kibana : [http://localhost:5601](http://localhost:5601)
+2. Créer les index patterns :
+   - `suricata-alerts-*`
+   - `apache-logs-*`
+3. Visualiser :
+   - Les types d'attaques
+   - IP suspectes
+   - Requêtes HTTP filtrées par le WAF
+
+---
+
+## 🧠 Auteur
+
+**Dierry Nevyl Tchuendom**\
+Étudiant en Cybersécurité - Lille YNOV Campus\
+Projet DevSecOps
+

@@ -1,0 +1,1 @@
+alert http any any -> any any (msg:"SURICATA Test Alert"; content:"test"; sid:1; rev:1;)
